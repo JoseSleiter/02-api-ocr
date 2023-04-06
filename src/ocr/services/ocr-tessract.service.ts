@@ -1,17 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import * as tesseract from 'node-tesseract-ocr';
+// https://github.com/tesseract-ocr/tesseract/blob/main/doc/tesseract.1.asc#LANGUAGES
 
 @Injectable()
 export class OcrService {
     config = {
         lang: 'spa',
-        oem: 3,
-        psm: 3,
+        oem: 1,
+        psm: 11,
     };
     regexWithLetter = /[0-9]{2}[-\\. ]{1,2}[0-9]{2}[-\\. ]{1,2}(19|20)[0-9]{2}/;
     regexForAnyCurrency = /\d+(?:[.,]\d{0,2})?/;
     TOTAL_AMOUNT_PAID = 'IMPORTO PAGATO';
-
 
     parseLocaleNumber(stringNumber, locale) {
         const thousandSeparator = Intl.NumberFormat(locale)
@@ -27,7 +27,6 @@ export class OcrService {
                 .replace(new RegExp('\\' + decimalSeparator), '.'),
         );
     }
-
 
     parseReceipt(arrayText: Array<string>) {
         const itemsFound = [];

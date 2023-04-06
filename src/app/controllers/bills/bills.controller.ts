@@ -2,7 +2,7 @@ import { Controller, ParseFilePipeBuilder, Post, UploadedFile, UseInterceptors }
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { FileSizeValidationPipe } from '../../../bills/pipe/file-size-validation.pipe';
-import { OcrService } from '../../../ocr/services/ocr.service';
+import { OcrService } from '../../../ocr/services/ocr-aws.service';
 import { AppService } from '../../app.service';
 
 @ApiTags('Bills')
