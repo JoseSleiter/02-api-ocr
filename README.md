@@ -1,73 +1,52 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo_text.svg" width="320" alt="Nest Logo" /></a>
-</p>
+# Invoice OCR API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+NestJS service that takes a **photo of a receipt** and returns the fields that matter —
+**date** and **total amount paid** — instead of a wall of raw text.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## The idea
 
-## Description
+OCR engines disagree, cost money, and some of them need the cloud. So the engine sits behind
+**one interface with two interchangeable implementations**:
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+| Engine | File | When |
+|---|---|---|
+| **AWS Textract** | `src/ocr/services/ocr-aws.service.ts` | Best accuracy on structured documents; walks Textract's `Relationships` / `BlockType` tree to rebuild lines and words. |
+| **Tesseract** (local) | `src/ocr/services/ocr-tessract.service.ts` | No cloud, no credentials, no per-page cost. Runs with `lang: spa`, `oem: 1`, `psm: 11`. |
 
-## Installation
+Swapping one for the other is a provider change in `OcrModule` — the controller never knows
+which one answered.
 
-```bash
-$ npm install
+## What it actually parses
+
+Reading the text is the easy half. The useful half is **turning a locale-formatted string into a
+number**: `1.234,56` and `1,234.56` are the same amount written by two countries. The service
+derives both separators from `Intl.NumberFormat` for the target locale instead of hardcoding them.
+
+Fields extracted today: issue date (regex over `dd-mm-yyyy` and its variants) and the total paid.
+
+## API
+
+```
+POST /bills/file      multipart/form-data, field "file"
 ```
 
-## Running the app
+Guarded by a custom `FileSizeValidationPipe` before the upload ever reaches the OCR layer.
+Swagger is mounted via `@nestjs/swagger` (`@ApiTags('Bills')`).
+
+## Running it
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm install
+cp .env-example .env     # AWS region / credentials, only needed for the Textract engine
+npm run start:dev
 ```
 
-## Test
+There is a `Dockerfile` for the containerized run.
 
-```bash
-# unit tests
-$ npm run test
+## Honest status
 
-# e2e tests
-$ npm run test:e2e
+This is a **working prototype, not a product**. The Textract client in `ocr-aws.service.ts` is
+wired but commented out, and the service resolves against sample payloads in `src/ocr/_mock/` so
+the parsing logic can be exercised without burning AWS calls. The Tesseract path runs for real.
 
-# test coverage
-$ npm run test:cov
-```
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://kamilmysliwiec.com)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](LICENSE).
+Stack: TypeScript · NestJS · `@aws-sdk/client-textract` · `node-tesseract-ocr` · Joi · Swagger · Docker
